@@ -363,6 +363,83 @@ tr:last-child td { border-bottom: none; }
       <div id="kart-liste"><div class="loading">Yükleniyor...</div></div>
     </div>
 
+    <!-- FATURALAR -->
+    <div id="page-faturalar" class="page">
+      <div class="section">
+        <div class="section-title" style="margin-bottom:12px">Fatura ekle</div>
+        <div class="form-row2">
+          <div class="form-field"><label>Fatura adı</label><input type="text" id="fat-ad" placeholder="ör: Elektrik"></div>
+          <div class="form-field"><label>Tutar (₺)</label><input type="number" id="fat-tutar" placeholder="0" min="0" inputmode="decimal"></div>
+        </div>
+        <div class="form-row2">
+          <div class="form-field"><label>Son ödeme günü</label><input type="number" id="fat-gun" placeholder="1-31" min="1" max="31" inputmode="numeric"></div>
+          <div class="form-field"><label>Kategori</label>
+            <select id="fat-kat">
+              <option>Elektrik</option><option>Su</option><option>Doğalgaz</option>
+              <option>İnternet</option><option>Telefon</option><option>Kira</option><option>Diğer</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="faturaEkle()">Ekle</button>
+      </div>
+      <div id="fatura-liste"><div class="loading">Yükleniyor...</div></div>
+    </div>
+
+    <!-- HEDEFLER -->
+    <div id="page-hedefler" class="page">
+      <div class="section">
+        <div class="section-title" style="margin-bottom:12px">Birikim hedefi ekle</div>
+        <div class="form-row2">
+          <div class="form-field"><label>Hedef adı</label><input type="text" id="hdf-ad" placeholder="ör: Araba, Tatil"></div>
+          <div class="form-field"><label>Hedef tutar (₺)</label><input type="number" id="hdf-tutar" placeholder="0" min="0" inputmode="decimal"></div>
+        </div>
+        <div class="form-row2">
+          <div class="form-field"><label>Mevcut birikim (₺)</label><input type="number" id="hdf-mevcut" placeholder="0" min="0" value="0" inputmode="decimal"></div>
+          <div class="form-field"><label>Hedef tarihi</label><input type="date" id="hdf-tarih"></div>
+        </div>
+        <button class="btn btn-primary" onclick="hedefEkle()">Ekle</button>
+      </div>
+      <div id="hedef-liste"><div class="loading">Yükleniyor...</div></div>
+    </div>
+
+    <!-- PORTFÖY -->
+    <div id="page-portfolyo" class="page">
+      <div class="section">
+        <div class="section-title" style="margin-bottom:12px">Varlık ekle</div>
+        <div class="form-row2">
+          <div class="form-field"><label>Tür</label>
+            <select id="port-tip">
+              <option value="USD">Dolar (USD)</option>
+              <option value="EUR">Euro (EUR)</option>
+              <option value="GBP">Sterlin (GBP)</option>
+              <option value="ALTIN">Altın (gram)</option>
+              <option value="GUMUS">Gümüş (gram)</option>
+              <option value="BTC">Bitcoin (BTC)</option>
+              <option value="DIGER">Diğer</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Miktar</label><input type="number" id="port-miktar" placeholder="0" min="0" step="any" inputmode="decimal"></div>
+        </div>
+        <div class="form-row2">
+          <div class="form-field"><label>Alış fiyatı (₺)</label><input type="number" id="port-fiyat" placeholder="0" min="0" inputmode="decimal"></div>
+          <div class="form-field"><label>Alış tarihi</label><input type="date" id="port-tarih"></div>
+        </div>
+        <div class="form-field"><label>Açıklama</label><input type="text" id="port-ac" placeholder="opsiyonel"></div>
+        <button class="btn btn-primary" onclick="portEkle()">Ekle</button>
+      </div>
+      <div style="background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:14px">
+        <div class="section-title" style="margin-bottom:10px">Güncel kurlar</div>
+        <div id="kur-liste"><div class="loading">Kurlar yükleniyor...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-head">
+          <span class="section-title" style="margin-bottom:0">Portföyüm</span>
+          <span id="port-toplam" style="font-size:14px;font-weight:600;color:var(--green-light)"></span>
+        </div>
+        <div id="port-liste"><div class="loading">Yükleniyor...</div></div>
+      </div>
+    </div>
+
     <!-- BORÇLARIM -->
     <div id="page-borclar" class="page">
       <div id="borclar-ozet" class="summary-cards" style="margin-bottom:16px"></div>
@@ -411,6 +488,15 @@ tr:last-child td { border-bottom: none; }
     </button>
     <button class="nav-item" onclick="showPage('kart',this)">
       <span class="nav-icon">▭</span><span class="nav-label">Kartlar</span>
+    </button>
+    <button class="nav-item" onclick="showPage('faturalar',this)">
+      <span class="nav-icon">◈</span><span class="nav-label">Faturalar</span>
+    </button>
+    <button class="nav-item" onclick="showPage('hedefler',this)">
+      <span class="nav-icon">◎</span><span class="nav-label">Hedefler</span>
+    </button>
+    <button class="nav-item" onclick="showPage('portfolyo',this)">
+      <span class="nav-icon">◆</span><span class="nav-label">Portföy</span>
     </button>
     <button class="nav-item" onclick="showPage('borclar',this)">
       <span class="nav-icon">!</span><span class="nav-label">Borçlarım</span>
@@ -515,6 +601,7 @@ async function initApp() {
 
 async function loadAll() {
   await Promise.all([renderDashboard(), renderIslemler(), renderButce(), renderToptanci(), renderKartlar(), renderKartSec()]);
+  renderFaturalar(); renderHedefler(); renderPortfolyo(); fetchKurlar();
 }
 
 // ── NAVIGATION ────────────────────────────────────────────────
@@ -530,6 +617,9 @@ function showPage(id, btn) {
   if (id === 'tekrar') { renderKatSelect('tek-tip','tek-kat'); renderTekrar(); }
   if (id === 'toptanci') renderToptanci();
   if (id === 'kart') { renderKartlar(); renderKartSec(); }
+  if (id === 'faturalar') renderFaturalar();
+  if (id === 'hedefler') renderHedefler();
+  if (id === 'portfolyo') { renderPortfolyo(); fetchKurlar(); }
   if (id === 'borclar') renderBorclar();
   if (id === 'rapor') renderRapor();
 }
@@ -1011,6 +1101,278 @@ async function renderBorclar() {
         </div>
       </div>`).join('');
   }
+}
+
+
+// ── FATURALAR ─────────────────────────────────────────────────
+async function faturaEkle() {
+  const ad = document.getElementById('fat-ad').value.trim();
+  const tutar = parseFloat(document.getElementById('fat-tutar').value);
+  const gun = parseInt(document.getElementById('fat-gun').value);
+  if (!ad || !tutar || !gun) { alert('Tüm alanlar zorunludur'); return; }
+  await sb.from('faturalar').insert({
+    user_id: currentUser.id, ad, tutar, son_odeme_gun: gun,
+    kategori: document.getElementById('fat-kat').value, odendi: false
+  });
+  document.getElementById('fat-ad').value = '';
+  document.getElementById('fat-tutar').value = '';
+  document.getElementById('fat-gun').value = '';
+  await renderFaturalar();
+}
+
+async function faturaOdendi(id, odendi) {
+  await sb.from('faturalar').update({ odendi: !odendi, odendi_tarih: !odendi ? today() : null }).eq('id', id);
+  await renderFaturalar();
+}
+
+async function faturaSil(id) {
+  if (!confirm('Fatura silinsin mi?')) return;
+  await sb.from('faturalar').delete().eq('id', id).eq('user_id', currentUser.id);
+  await renderFaturalar();
+}
+
+async function renderFaturalar() {
+  const { data } = await sb.from('faturalar').select('*').eq('user_id', currentUser.id).eq('aktif', true).order('son_odeme_gun');
+  const el = document.getElementById('fatura-liste');
+  if (!el) return;
+  if (!data?.length) { el.innerHTML = '<div class="empty">Fatura eklenmedi</div>'; return; }
+  const bugun = new Date().getDate();
+  const odenmemis = data.filter(f => !f.odendi);
+  const odenmis = data.filter(f => f.odendi);
+  const topOdenmemis = odenmemis.reduce((s,f)=>s+Number(f.tutar),0);
+
+  let html = '';
+  if (odenmemis.length) {
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Ödenmemiş (${odenmemis.length})</span>
+      <span style="font-size:14px;font-weight:600;color:var(--red)">${fmt(topOdenmemis)}</span>
+    </div>`;
+    html += odenmemis.map(f => {
+      const kalanGun = f.son_odeme_gun >= bugun ? f.son_odeme_gun - bugun : (30 - bugun + f.son_odeme_gun);
+      const acil = kalanGun <= 3 ? 'badge-e' : kalanGun <= 7 ? 'badge-warn' : '';
+      const acilText = kalanGun <= 3 ? `Son ${kalanGun} gün!` : kalanGun <= 7 ? `${kalanGun} gün kaldı` : `Her ayın ${f.son_odeme_gun}i`;
+      return `<div style="border:0.5px solid ${kalanGun<=3?'var(--red)':'var(--border)'};border-radius:var(--radius);padding:12px;margin-bottom:8px;background:${kalanGun<=3?'var(--red-pale)':'var(--card)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <div style="font-weight:500;font-size:14px">${f.ad}</div>
+            <div style="font-size:12px;color:var(--muted)">${f.kategori}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:600;color:var(--red)">${fmt(f.tutar)}</div>
+            <span class="badge ${acil||'badge-warn'}" style="font-size:10px">${acilText}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="faturaOdendi(${f.id},${f.odendi})">Ödendi işaretle</button>
+          <button class="btn btn-danger" onclick="faturaSil(${f.id})">Sil</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (odenmis.length) {
+    html += `<div style="margin-top:16px;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Ödendi (${odenmis.length})</div>`;
+    html += odenmis.map(f => `
+      <div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;opacity:0.6">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:500;font-size:14px;text-decoration:line-through">${f.ad}</div>
+            <div style="font-size:11px;color:var(--muted)">${f.odendi_tarih||''} tarihinde ödendi</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:14px;font-weight:600;color:var(--green-light)">${fmt(f.tutar)}</div>
+            <button class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="faturaOdendi(${f.id},${f.odendi})">Geri al</button>
+            <button class="btn btn-danger" onclick="faturaSil(${f.id})">Sil</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+  el.innerHTML = html;
+}
+
+// ── HEDEFLER ──────────────────────────────────────────────────
+async function hedefEkle() {
+  const ad = document.getElementById('hdf-ad').value.trim();
+  const hedef = parseFloat(document.getElementById('hdf-tutar').value);
+  if (!ad || !hedef) { alert('Ad ve hedef tutar zorunludur'); return; }
+  await sb.from('hedefler').insert({
+    user_id: currentUser.id, ad, hedef_tutar: hedef,
+    mevcut_tutar: parseFloat(document.getElementById('hdf-mevcut').value)||0,
+    bitis_tarihi: document.getElementById('hdf-tarih').value||null
+  });
+  document.getElementById('hdf-ad').value = '';
+  document.getElementById('hdf-tutar').value = '';
+  document.getElementById('hdf-mevcut').value = '0';
+  document.getElementById('hdf-tarih').value = '';
+  await renderHedefler();
+}
+
+async function hedefPara(id, ad, mevcut) {
+  const tutar = parseFloat(prompt(`${ad} hedefine eklenecek tutar (₺):`));
+  if (!tutar || tutar <= 0) return;
+  await sb.from('hedefler').update({ mevcut_tutar: Number(mevcut) + tutar }).eq('id', id);
+  await renderHedefler();
+}
+
+async function hedefSil(id) {
+  if (!confirm('Hedef silinsin mi?')) return;
+  await sb.from('hedefler').delete().eq('id', id).eq('user_id', currentUser.id);
+  await renderHedefler();
+}
+
+async function renderHedefler() {
+  const { data } = await sb.from('hedefler').select('*').eq('user_id', currentUser.id).order('created_at');
+  const el = document.getElementById('hedef-liste');
+  if (!el) return;
+  if (!data?.length) { el.innerHTML = '<div class="empty">Henüz birikim hedefi yok</div>'; return; }
+
+  const topHedef = data.reduce((s,h)=>s+Number(h.hedef_tutar),0);
+  const topMevcut = data.reduce((s,h)=>s+Number(h.mevcut_tutar),0);
+
+  let ozet = `<div class="summary-cards" style="margin-bottom:14px">
+    <div class="summary-card"><div class="sc-label">Toplam hedef</div><div class="sc-val" style="color:var(--text)">${fmt(topHedef)}</div></div>
+    <div class="summary-card"><div class="sc-label">Toplam birikim</div><div class="sc-val g">${fmt(topMevcut)}</div></div>
+  </div>`;
+
+  const kartlar = data.map(h => {
+    const pct = Math.min(100, Math.round(Number(h.mevcut_tutar)/Number(h.hedef_tutar)*100));
+    const kalan = Number(h.hedef_tutar) - Number(h.mevcut_tutar);
+    let tahminiAy = '';
+    if (h.bitis_tarihi) {
+      const bugun = new Date();
+      const bitis = new Date(h.bitis_tarihi);
+      const kalanGun = Math.ceil((bitis-bugun)/(1000*60*60*24));
+      tahminiAy = kalanGun > 0 ? `${kalanGun} gün kaldı` : 'Süre doldu!';
+    }
+    const fillColor = pct >= 100 ? '#639922' : pct >= 60 ? '#3B6D11' : '#378ADD';
+    return `<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-weight:500;font-size:15px">${h.ad}</div>
+          ${tahminiAy ? `<div style="font-size:12px;color:var(--muted)">${tahminiAy}</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:600;color:var(--green-light)">${fmt(h.mevcut_tutar)}</div>
+          <div style="font-size:11px;color:var(--muted)">/ ${fmt(h.hedef_tutar)}</div>
+        </div>
+      </div>
+      <div style="background:var(--bg);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;border-radius:4px;background:${fillColor};width:${pct}%;transition:width 0.5s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted)">%${pct} tamamlandı · ${fmt(kalan)} kaldı</span>
+        <div style="display:flex;gap:6px">
+          ${pct < 100 ? `<button class="btn btn-outline btn-sm" onclick="hedefPara(${h.id},'${h.ad.replace(/'/g,"\\'")}',${h.mevcut_tutar})">+ Ekle</button>` : '<span class="badge badge-g">Tamamlandı!</span>'}
+          <button class="btn btn-danger" onclick="hedefSil(${h.id})">Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = ozet + kartlar;
+}
+
+// ── PORTFÖY ───────────────────────────────────────────────────
+const KUR_SEMBOLLER = { USD:'$', EUR:'€', GBP:'£', ALTIN:'gr', GUMUS:'gr', BTC:'₿', DIGER:'' };
+let guncelKurlar = {};
+
+async function fetchKurlar() {
+  const el = document.getElementById('kur-liste');
+  if (!el) return;
+  try {
+    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY,EUR,GBP');
+    const d = await r.json();
+    const usdTry = d.rates.TRY;
+    const eurTry = usdTry / d.rates.EUR;
+    const gbpTry = usdTry / d.rates.GBP;
+
+    const altinR = await fetch('https://api.frankfurter.app/latest?from=XAU&to=TRY');
+    const altinD = await altinR.json();
+    const altinGram = altinD.rates.TRY / 31.1035;
+
+    guncelKurlar = { USD: usdTry, EUR: eurTry, GBP: gbpTry, ALTIN: altinGram };
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${[
+          {ad:'Dolar',sembol:'USD',ikon:'$'},
+          {ad:'Euro',sembol:'EUR',ikon:'€'},
+          {ad:'Sterlin',sembol:'GBP',ikon:'£'},
+          {ad:'Altın (gr)',sembol:'ALTIN',ikon:'Au'},
+        ].map(k=>`
+          <div style="background:var(--bg);border-radius:var(--radius);padding:10px;display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:24px;height:24px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--green-text)">${k.ikon}</div>
+              <span style="font-size:13px;color:var(--muted)">${k.ad}</span>
+            </div>
+            <span style="font-size:14px;font-weight:600">${fmt(guncelKurlar[k.sembol]||0)}</span>
+          </div>`).join('')}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted)">Kur bilgisi alınamadı</div>';
+  }
+  await renderPortfolyo();
+}
+
+async function portEkle() {
+  const tip = document.getElementById('port-tip').value;
+  const miktar = parseFloat(document.getElementById('port-miktar').value);
+  if (!miktar || miktar <= 0) { alert('Miktar zorunludur'); return; }
+  await sb.from('portfolyo').insert({
+    user_id: currentUser.id, tip, miktar,
+    alis_fiyati: parseFloat(document.getElementById('port-fiyat').value)||null,
+    alis_tarihi: document.getElementById('port-tarih').value||null,
+    aciklama: document.getElementById('port-ac').value
+  });
+  document.getElementById('port-miktar').value = '';
+  document.getElementById('port-fiyat').value = '';
+  document.getElementById('port-ac').value = '';
+  await renderPortfolyo();
+}
+
+async function portSil(id) {
+  if (!confirm('Silinsin mi?')) return;
+  await sb.from('portfolyo').delete().eq('id', id).eq('user_id', currentUser.id);
+  await renderPortfolyo();
+}
+
+async function renderPortfolyo() {
+  const { data } = await sb.from('portfolyo').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false});
+  const el = document.getElementById('port-liste');
+  const topEl = document.getElementById('port-toplam');
+  if (!el) return;
+  if (!data?.length) { el.innerHTML = '<div class="empty">Portföy boş</div>'; if(topEl) topEl.textContent=''; return; }
+
+  let toplamTL = 0;
+  const kartlar = data.map(p => {
+    const kur = guncelKurlar[p.tip] || 0;
+    const guncelTL = kur * Number(p.miktar);
+    const alisTL = (p.alis_fiyati||0) * Number(p.miktar);
+    const karZarar = kur ? guncelTL - alisTL : 0;
+    const karPct = alisTL > 0 ? Math.round(karZarar/alisTL*100) : 0;
+    toplamTL += guncelTL;
+
+    const sembol = KUR_SEMBOLLER[p.tip]||'';
+    return `<div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div>
+          <div style="font-weight:500;font-size:14px">${p.tip} ${p.aciklama?'· '+p.aciklama:''}</div>
+          <div style="font-size:12px;color:var(--muted)">${Number(p.miktar).toLocaleString('tr-TR',{maximumFractionDigits:4})} ${sembol} ${p.alis_tarihi?'· alış: '+p.alis_tarihi:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:15px;font-weight:600">${kur?fmt(guncelTL):'—'}</div>
+          ${alisTL>0&&kur?`<div style="font-size:11px;font-weight:500;color:${karZarar>=0?'var(--green-light)':'var(--red)'}">${karZarar>=0?'+':''}${fmt(karZarar)} (%${karPct})</div>`:''}
+        </div>
+      </div>
+      ${p.alis_fiyati?`<div style="font-size:11px;color:var(--muted)">Alış: ${fmt(p.alis_fiyati)} · Güncel: ${kur?fmt(kur):'—'}</div>`:''}
+      <div style="margin-top:6px;text-align:right">
+        <button class="btn btn-danger" onclick="portSil(${p.id})">Sil</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (topEl) topEl.textContent = 'Toplam: ' + fmt(toplamTL);
+  el.innerHTML = kartlar;
 }
 
 async function csvIndir() {
