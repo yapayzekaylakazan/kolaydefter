@@ -366,21 +366,29 @@ tr:last-child td { border-bottom: none; }
     <!-- FATURALAR -->
     <div id="page-faturalar" class="page">
       <div class="section">
-        <div class="section-title" style="margin-bottom:12px">Fatura ekle</div>
+        <div class="section-title" style="margin-bottom:12px">Fatura / Kira ekle</div>
         <div class="form-row2">
-          <div class="form-field"><label>Fatura adı</label><input type="text" id="fat-ad" placeholder="ör: Elektrik"></div>
+          <div class="form-field"><label>Ad</label><input type="text" id="fat-ad" placeholder="ör: Elektrik, Ahmet Bey Dükkan"></div>
           <div class="form-field"><label>Tutar (₺)</label><input type="number" id="fat-tutar" placeholder="0" min="0" inputmode="decimal"></div>
         </div>
         <div class="form-row2">
           <div class="form-field"><label>Son ödeme günü</label><input type="number" id="fat-gun" placeholder="1-31" min="1" max="31" inputmode="numeric"></div>
           <div class="form-field"><label>Kategori</label>
             <select id="fat-kat">
-              <option>Elektrik</option><option>Su</option><option>Doğalgaz</option>
-              <option>İnternet</option><option>Telefon</option><option>Kira</option><option>Diğer</option>
+              <option>Kira</option><option>Elektrik</option><option>Su</option><option>Doğalgaz</option>
+              <option>İnternet</option><option>Telefon</option><option>Sigorta</option><option>Diğer</option>
             </select>
           </div>
         </div>
+        <div class="form-field"><label>Açıklama (opsiyonel)</label><input type="text" id="fat-aciklama" placeholder="ör: Cadde üstü dükkan, 2. kat ofis..."></div>
         <button class="btn btn-primary" onclick="faturaEkle()">Ekle</button>
+      </div>
+      <div class="filter-row" id="fat-filter-row">
+        <button class="filter-btn active" onclick="setFatFilter('tumu',this)">Tümü</button>
+        <button class="filter-btn" onclick="setFatFilter('kira',this)">Kiralar</button>
+        <button class="filter-btn" onclick="setFatFilter('fatura',this)">Faturalar</button>
+        <button class="filter-btn" onclick="setFatFilter('odenmemis',this)">Ödenmemiş</button>
+        <button class="filter-btn" onclick="setFatFilter('odenmis',this)">Ödendi</button>
       </div>
       <div id="fatura-liste"><div class="loading">Yükleniyor...</div></div>
     </div>
@@ -1112,14 +1120,17 @@ async function faturaEkle() {
   const ad = document.getElementById('fat-ad').value.trim();
   const tutar = parseFloat(document.getElementById('fat-tutar').value);
   const gun = parseInt(document.getElementById('fat-gun').value);
-  if (!ad || !tutar || !gun) { alert('Tüm alanlar zorunludur'); return; }
+  if (!ad || !tutar || !gun) { alert('Ad, tutar ve ödeme günü zorunludur'); return; }
   await sb.from('faturalar').insert({
     user_id: currentUser.id, ad, tutar, son_odeme_gun: gun,
-    kategori: document.getElementById('fat-kat').value, odendi: false
+    kategori: document.getElementById('fat-kat').value,
+    aciklama: document.getElementById('fat-aciklama')?.value || '',
+    odendi: false
   });
   document.getElementById('fat-ad').value = '';
   document.getElementById('fat-tutar').value = '';
   document.getElementById('fat-gun').value = '';
+  if (document.getElementById('fat-aciklama')) document.getElementById('fat-aciklama').value = '';
   await renderFaturalar();
 }
 
@@ -1134,11 +1145,28 @@ async function faturaSil(id) {
   await renderFaturalar();
 }
 
+let fatFilter = 'tumu';
+function setFatFilter(f, btn) {
+  fatFilter = f;
+  document.querySelectorAll('#fat-filter-row .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFaturalar();
+}
+
 async function renderFaturalar() {
-  const { data } = await sb.from('faturalar').select('*').eq('user_id', currentUser.id).eq('aktif', true).order('son_odeme_gun');
+  const { data: allData } = await sb.from('faturalar').select('*').eq('user_id', currentUser.id).eq('aktif', true).order('son_odeme_gun');
   const el = document.getElementById('fatura-liste');
   if (!el) return;
-  if (!data?.length) { el.innerHTML = '<div class="empty">Fatura eklenmedi</div>'; return; }
+  if (!allData?.length) { el.innerHTML = '<div class="empty">Fatura / kira eklenmedi</div>'; return; }
+
+  let data = allData;
+  if (fatFilter === 'kira') data = allData.filter(f=>f.kategori==='Kira');
+  else if (fatFilter === 'fatura') data = allData.filter(f=>f.kategori!=='Kira');
+  else if (fatFilter === 'odenmemis') data = allData.filter(f=>!f.odendi);
+  else if (fatFilter === 'odenmis') data = allData.filter(f=>f.odendi);
+
+  if (!data.length) { el.innerHTML = '<div class="empty">Bu filtrede kayıt yok</div>'; return; }
+
   const bugun = new Date().getDate();
   const odenmemis = data.filter(f => !f.odendi);
   const odenmis = data.filter(f => f.odendi);
@@ -1157,8 +1185,8 @@ async function renderFaturalar() {
       return `<div style="border:0.5px solid ${kalanGun<=3?'var(--red)':'var(--border)'};border-radius:var(--radius);padding:12px;margin-bottom:8px;background:${kalanGun<=3?'var(--red-pale)':'var(--card)'}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
           <div>
-            <div style="font-weight:500;font-size:14px">${f.ad}</div>
-            <div style="font-size:12px;color:var(--muted)">${f.kategori}</div>
+            <div style="font-weight:500;font-size:14px">${f.ad} ${f.kategori==='Kira'?'<span class="badge badge-warn" style="font-size:10px">Kira</span>':''}</div>
+            <div style="font-size:12px;color:var(--muted)">${f.kategori}${f.aciklama?' · '+f.aciklama:''}</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:600;color:var(--red)">${fmt(f.tutar)}</div>
@@ -1180,7 +1208,7 @@ async function renderFaturalar() {
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-weight:500;font-size:14px;text-decoration:line-through">${f.ad}</div>
-            <div style="font-size:11px;color:var(--muted)">${f.odendi_tarih||''} tarihinde ödendi</div>
+            <div style="font-size:11px;color:var(--muted)">${f.aciklama?f.aciklama+' · ':''} ${f.odendi_tarih||''} tarihinde ödendi</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="font-size:14px;font-weight:600;color:var(--green-light)">${fmt(f.tutar)}</div>
