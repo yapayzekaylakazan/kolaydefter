@@ -1075,7 +1075,7 @@ async function renderBorclar() {
         <div class="kk-bar"><div class="kk-fill" style="width:${pct}%;background:${fillColor}"></div></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
           <span style="font-size:11px;color:var(--muted)">%${pct} kullanım</span>
-          <button class="btn btn-outline btn-sm" onclick="kartOdeme(${k.id},'${k.ad.replace(/'/g,"\\'")}');setTimeout(renderBorclar,400)">Ödeme yap</button>
+          <button class="btn btn-outline btn-sm" onclick="kartOdeme(${k.id},'${k.ad.replace(/'/g,"\\'")}');setTimeout(()=>{renderBorclar();renderDashboard();},400)">Ödeme yap</button>
         </div>
       </div>`;
     }).join('');
@@ -1100,7 +1100,7 @@ async function renderBorclar() {
           </div>
         </div>
         <div style="margin-top:8px">
-          <button class="btn btn-outline btn-sm" onclick="topOdeme(${t.id},'${t.ad.replace(/'/g,"\\'")}');setTimeout(renderBorclar,400)">Ödeme yap</button>
+          <button class="btn btn-outline btn-sm" onclick="topOdeme(${t.id},'${t.ad.replace(/'/g,"\\'")}');setTimeout(()=>{renderBorclar();renderDashboard();},400)">Ödeme yap</button>
         </div>
       </div>`).join('');
   }
