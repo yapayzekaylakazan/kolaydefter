@@ -1148,8 +1148,11 @@ async function faturaOdendi(id, odendi) {
   await renderFaturalar();
 }
 
-async function ayOdendi(id, ay, odenenAylar) {
-  let aylar = odenenAylar || [];
+async function ayOdendiToggle(id, ay) {
+  const { data: f } = await sb.from('faturalar').select('odenen_aylar').eq('id', id).single();
+  let aylar = [];
+  try { aylar = JSON.parse(f?.odenen_aylar||'[]'); } catch(e){}
+  aylar = aylar.map(a => typeof a === 'string' ? a : a.ay);
   if (aylar.includes(ay)) {
     aylar = aylar.filter(a => a !== ay);
   } else {
@@ -1188,12 +1191,24 @@ async function renderFaturalar() {
 
   if (!data.length) { el.innerHTML = '<div class="empty">Bu filtrede kayıt yok</div>'; return; }
 
+
   const bugun = new Date().getDate();
-  const buAy = new Date().toISOString().slice(0,7); // "2026-04"
-  const aylar12 = Array.from({length:12},(_,i)=>{
-    const d = new Date(); d.setMonth(d.getMonth()-11+i);
-    return { key: d.toISOString().slice(0,7), label: d.toLocaleString('tr-TR',{month:'short', year:'2-digit'}) };
-  });
+  const buAy = new Date().toISOString().slice(0,7);
+
+  // Kayıt tarihinden itibaren 12 ay üret (geçmiş + gelecek dahil)
+  function getAylar(f) {
+    // Başlangıç = kayıt oluşturma ayı, 12 ay ilerisi
+    const baslangic = new Date(f.created_at || new Date());
+    baslangic.setDate(1);
+    return Array.from({length:12},(_,i)=>{
+      const d = new Date(baslangic); d.setMonth(baslangic.getMonth()+i);
+      return {
+        key: d.toISOString().slice(0,7),
+        yil: d.getFullYear(),
+        label: d.toLocaleString('tr-TR',{month:'short'})
+      };
+    });
+  }
 
   // 12 aylık olanlar ayrı
   const on_iki = data.filter(f=>f.on_iki_ay);
@@ -1209,20 +1224,35 @@ async function renderFaturalar() {
     html += `<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">12 Aylık Takip (${on_iki.length})</div>`;
     html += on_iki.map(f => {
       let odenenAylar = [];
-      try { odenenAylar = JSON.parse(f.odenen_aylar||'[]'); } catch(e){}
+      try { const raw = JSON.parse(f.odenen_aylar||'[]'); odenenAylar = raw.map(a=>typeof a==='string'?a:a.ay); } catch(e){}
       const odenenSayi = odenenAylar.length;
       const topOdenen = odenenSayi * Number(f.tutar);
       const kalanSayi = 12 - odenenSayi;
+      const aylarF = getAylar(f);
 
-      const ayGrid = aylar12.map(a => {
-        const odendi = odenenAylar.includes(a.key);
-        const buAyMi = a.key === buAy;
-        return `<div onclick="ayOdendi(${f.id},'${a.key}',${JSON.stringify(odenenAylar)})"
-          style="cursor:pointer;padding:5px 4px;border-radius:6px;text-align:center;font-size:10px;font-weight:600;
-          background:${odendi?'var(--green-pale)':buAyMi?'var(--red-pale)':'var(--bg)'};
-          color:${odendi?'var(--green-text)':buAyMi?'var(--red)':'var(--muted)'};
-          border:0.5px solid ${odendi?'#97C459':buAyMi?'var(--red)':'var(--border)'}">
-          ${a.label}<br>${odendi?'✓':'·'}
+      // Yıllara göre grupla
+      const yillar = {};
+      aylarF.forEach(a => {
+        if (!yillar[a.yil]) yillar[a.yil] = [];
+        yillar[a.yil].push(a);
+      });
+
+      const yilGridler = Object.entries(yillar).map(([yil, aylar]) => {
+        const ayKutular = aylar.map(a => {
+          const odendi = odenenAylar.includes(a.key);
+          const buAyMi = a.key === buAy;
+          const gelecek = a.key > buAy;
+          return `<div onclick="ayOdendiToggle(${f.id},'${a.key}')"
+            style="cursor:pointer;padding:6px 4px;border-radius:6px;text-align:center;font-size:11px;font-weight:600;
+            background:${odendi?'var(--green-pale)':buAyMi?'var(--red-pale)':gelecek?'var(--bg)':'var(--bg)'};
+            color:${odendi?'var(--green-text)':buAyMi?'var(--red)':gelecek?'var(--muted)':'var(--muted)'};
+            border:1px solid ${odendi?'#97C459':buAyMi?'var(--red)':'var(--border)'}">
+            ${a.label}<br><span style="font-size:13px">${odendi?'✓':buAyMi?'!':'·'}</span>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">${yil}</div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">${ayKutular}</div>
         </div>`;
       }).join('');
 
@@ -1238,18 +1268,20 @@ async function renderFaturalar() {
           </div>
         </div>
         <div style="background:var(--bg);border-radius:4px;height:6px;overflow:hidden;margin-bottom:10px">
-          <div style="height:100%;background:var(--green-light);border-radius:4px;width:${Math.round(odenenSayi/12*100)}%"></div>
+          <div style="height:100%;background:var(--green-light);border-radius:4px;width:${Math.round(odenenSayi/12*100)}%;transition:width 0.4s"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px">${ayGrid}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        ${yilGridler}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
           <div style="font-size:12px;color:var(--muted)">
             Ödenen: <span style="color:var(--green-light);font-weight:600">${fmt(topOdenen)}</span>
-            · Kalan: <span style="color:var(--red);font-weight:600">${kalanSayi} ay</span>
+            · Kalan: <span style="color:var(--red);font-weight:600">${kalanSayi} ay (${fmt(kalanSayi*Number(f.tutar))})</span>
           </div>
           <button class="btn btn-danger" onclick="faturaSil(${f.id})">Sil</button>
         </div>
       </div>`;
     }).join('');
+  }
+
   }
 
   // Normal faturalar
