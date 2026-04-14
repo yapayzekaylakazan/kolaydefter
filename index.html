@@ -928,8 +928,11 @@ async function kartOdeme(id, ad) {
   const tutar = parseFloat(prompt(`${ad} — Ödeme tutarı (₺):`));
   if (!tutar||tutar<=0) return;
   const { data: k } = await sb.from('kartlar').select('borc').eq('id',id).single();
-  await sb.from('kartlar').update({ borc: Math.max(0,Number(k.borc)-tutar) }).eq('id',id);
-  await renderKartlar();
+  await Promise.all([
+    sb.from('kartlar').update({ borc: Math.max(0,Number(k.borc)-tutar) }).eq('id',id),
+    sb.from('txns').insert({ user_id:currentUser.id, tip:'gider', tutar, tarih:today(), kategori:'Kredi Kartı', aciklama:ad+' ödemesi' })
+  ]);
+  await renderKartlar(); await renderDashboard();
 }
 
 async function kartSil(id) {
