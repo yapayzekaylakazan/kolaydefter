@@ -363,6 +363,19 @@ tr:last-child td { border-bottom: none; }
       <div id="kart-liste"><div class="loading">Yükleniyor...</div></div>
     </div>
 
+    <!-- BORÇLARIM -->
+    <div id="page-borclar" class="page">
+      <div id="borclar-ozet" class="summary-cards" style="margin-bottom:16px"></div>
+      <div class="section">
+        <div class="section-title" style="margin-bottom:12px">Kredi kartı borçları</div>
+        <div id="borclar-kartlar"></div>
+      </div>
+      <div class="section">
+        <div class="section-title" style="margin-bottom:12px">Toptancı borçları</div>
+        <div id="borclar-toptanci"></div>
+      </div>
+    </div>
+
     <!-- RAPORLAR -->
     <div id="page-rapor" class="page">
       <div class="filter-row">
@@ -399,6 +412,9 @@ tr:last-child td { border-bottom: none; }
     <button class="nav-item" onclick="showPage('kart',this)">
       <span class="nav-icon">▭</span><span class="nav-label">Kartlar</span>
     </button>
+    <button class="nav-item" onclick="showPage('borclar',this)">
+      <span class="nav-icon">!</span><span class="nav-label">Borçlarım</span>
+    </button>
     <button class="nav-item" onclick="showPage('rapor',this)">
       <span class="nav-icon">≡</span><span class="nav-label">Rapor</span>
     </button>
@@ -412,7 +428,7 @@ const SB_KEY = 'sb_publishable_1Kk7kxtnkCgl0s6DIGkJjw_mAJFjgLn';
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
 const GELIR_KATS = ['Maaş','Freelance','Yatırım','Kira geliri','Diğer gelir'];
-const GIDER_KATS = ['Market','Fatura','Ulaşım','Sağlık','Eğlence','Restoran','Giyim','Eğitim','Kira','Diğer'];
+const GIDER_KATS = ['Market','Fatura','Ulaşım','Sağlık','Eğlence','Restoran','Giyim','Eğitim','Kira','Kredi Kartı','Toptancı','Diğer'];
 const PIE_COLORS = ['#97C459','#5DCAA5','#378ADD','#7F77DD','#D4537E','#D85A30','#EF9F27','#E24B4A','#888780','#1D9E75'];
 
 let currentUser = null;
@@ -508,7 +524,16 @@ function showPage(id, btn) {
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
   document.querySelector('.pages').scrollTop = 0;
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'islemler') { renderKatSelect('txn-tip','txn-kategori'); renderIslemler(); }
+  if (id === 'butce') { renderKatSelect2('bud-kat',GIDER_KATS); renderButce(); }
+  if (id === 'tekrar') { renderKatSelect('tek-tip','tek-kat'); renderTekrar(); }
+  if (id === 'toptanci') renderToptanci();
+  if (id === 'kart') { renderKartlar(); renderKartSec(); }
+  if (id === 'borclar') renderBorclar();
+  if (id === 'rapor') renderRapor();
 }
+
 
 // ── SELECTS ───────────────────────────────────────────────────
 function fillSelect(id, arr) {
@@ -697,7 +722,7 @@ async function topOdeme(id, ad) {
   await Promise.all([
     sb.from('toptanci').update({ borc: yeniBorc }).eq('id',id),
     sb.from('toptanci_hareketler').insert({ toptanci_id:id, user_id:currentUser.id, tarih:today(), tutar, tip:'odeme' }),
-    sb.from('txns').insert({ user_id:currentUser.id, tip:'gider', tutar, tarih:today(), kategori:'Diğer', aciklama:ad+' ödemesi' })
+    sb.from('txns').insert({ user_id:currentUser.id, tip:'gider', tutar, tarih:today(), kategori:'Toptancı', aciklama:ad+' ödemesi' })
   ]);
   await renderToptanci(); await renderDashboard();
 }
@@ -725,7 +750,37 @@ async function renderToptanci() {
   if (!data?.length) { el.innerHTML='<div class="empty">Toptancı eklenmedi</div>'; document.getElementById('top-toplam').textContent='—'; return; }
   const toplam = data.reduce((s,t)=>s+Number(t.borc),0);
   document.getElementById('top-toplam').textContent = fmt(toplam);
-  el.innerHTML = data.map(t => `
+  const { data: hareketler } = await sb.from('toptanci_hareketler')
+    .select('*').eq('user_id',currentUser.id)
+    .order('tarih',{ascending:false}).order('id',{ascending:false});
+  el.innerHTML = data.map(t => {
+    const th = (hareketler||[]).filter(h=>h.toptanci_id===t.id);
+    const topBorc = th.filter(h=>h.tip==='borc').reduce((s,h)=>s+Number(h.tutar),0);
+    const topOdendi = th.filter(h=>h.tip==='odeme').reduce((s,h)=>s+Number(h.tutar),0);
+    const satirlar = th.slice(0,10).map(h=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+            <div style="width:30px;height:30px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;background:${h.tip==='borc'?'var(--red-pale)':'var(--green-pale)'};color:${h.tip==='borc'?'var(--red)':'var(--green-light)'}">${h.tip==='borc'?'+':'-'}</div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:500">${h.tip==='borc'?'Borç eklendi':'Ödeme yapıldı'}</div><div style="font-size:11px;color:var(--muted)">${h.tarih}</div></div>
+            <div style="font-size:14px;font-weight:600;color:${h.tip==='borc'?'var(--red)':'var(--green-light)'}">${h.tip==='borc'?'+':'-'}${fmt(h.tutar)}</div>
+          </div>`).join('');
+    const daha = th.length>10 ? `<div style="text-align:center;padding:6px;font-size:12px;color:var(--muted)">+${th.length-10} daha...</div>` : '';
+    const ozet = th.length ? `
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <div style="flex:1;background:var(--red-pale);border-radius:var(--radius);padding:8px;text-align:center">
+            <div style="font-size:11px;color:var(--red);font-weight:500">Toplam borç</div>
+            <div style="font-size:15px;font-weight:600;color:var(--red)">${fmt(topBorc)}</div>
+          </div>
+          <div style="flex:1;background:var(--green-pale);border-radius:var(--radius);padding:8px;text-align:center">
+            <div style="font-size:11px;color:var(--green-text);font-weight:500">Toplam ödenen</div>
+            <div style="font-size:15px;font-weight:600;color:var(--green-light)">${fmt(topOdendi)}</div>
+          </div>
+        </div>` : '';
+    const gecmis = th.length ? `
+      <div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Hareket geçmişi</div>
+        ${ozet}${satirlar}${daha}
+      </div>` : '<div style="margin-top:8px;font-size:12px;color:var(--muted)">Henüz hareket yok</div>';
+    return `
     <div class="kart-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
@@ -734,7 +789,7 @@ async function renderToptanci() {
         </div>
         <div style="text-align:right">
           <div style="font-size:17px;font-weight:600;color:${Number(t.borc)>0?'var(--red)':'var(--green-light)'}">${fmt(t.borc)}</div>
-          <div style="font-size:11px;color:var(--muted)">bakiye</div>
+          <div style="font-size:11px;color:var(--muted)">güncel bakiye</div>
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -742,8 +797,11 @@ async function renderToptanci() {
         <button class="btn btn-outline btn-sm" onclick="topOdeme(${t.id},'${t.ad.replace(/'/g,"\\'")}')">Ödeme yap</button>
         <button class="btn btn-danger" onclick="topSil(${t.id})">Sil</button>
       </div>
-    </div>`).join('');
+      ${gecmis}
+    </div>`;
+  }).join('');
 }
+
 
 // ── KREDİ KARTLARI ────────────────────────────────────────────
 async function kartEkle() {
@@ -770,7 +828,7 @@ async function kartHarcamaEkle() {
   await Promise.all([
     sb.from('kartlar').update({ borc: Number(k.borc)+tutar }).eq('id',kartId),
     sb.from('kart_harcamalar').insert({ kart_id:kartId, user_id:currentUser.id, tarih:today(), tutar, aciklama:ac||'Harcama' }),
-    sb.from('txns').insert({ user_id:currentUser.id, tip:'gider', tutar, tarih:today(), kategori:'Diğer', aciklama:k.ad+': '+(ac||'Harcama') })
+    sb.from('txns').insert({ user_id:currentUser.id, tip:'gider', tutar, tarih:today(), kategori:'Kredi Kartı', aciklama:k.ad+': '+(ac||'Harcama') })
   ]);
   document.getElementById('kart-harc-tutar').value=''; document.getElementById('kart-harc-ac').value='';
   await renderKartlar(); await renderDashboard();
@@ -794,9 +852,30 @@ async function renderKartlar() {
   const { data } = await sb.from('kartlar').select('*').eq('user_id',currentUser.id).order('ad');
   const el = document.getElementById('kart-liste');
   if (!data?.length) { el.innerHTML='<div class="empty">Kart eklenmedi</div>'; return; }
+  const { data: harcamalar } = await sb.from('kart_harcamalar')
+    .select('*').eq('user_id',currentUser.id)
+    .order('tarih',{ascending:false}).order('id',{ascending:false});
   el.innerHTML = data.map(k => {
     const pct = Math.round(Number(k.borc)/k.limit_tutar*100);
     const fillColor = pct>=90?'#E24B4A':pct>=70?'#BA7517':'#378ADD';
+    const kh = (harcamalar||[]).filter(h=>h.kart_id===k.id);
+    const topHarc = kh.reduce((s,h)=>s+Number(h.tutar),0);
+    const satirlar = kh.slice(0,8).map(h=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+            <div style="width:30px;height:30px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:var(--red-pale);color:var(--red)">H</div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:500">${h.aciklama||'Harcama'}</div><div style="font-size:11px;color:var(--muted)">${h.tarih}</div></div>
+            <div style="font-size:14px;font-weight:600;color:var(--red)">-${fmt(h.tutar)}</div>
+          </div>`).join('');
+    const daha = kh.length>8 ? `<div style="text-align:center;padding:6px;font-size:12px;color:var(--muted)">+${kh.length-8} daha...</div>` : '';
+    const gecmis = kh.length ? `
+      <div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Harcama geçmişi</div>
+        <div style="background:var(--red-pale);border-radius:var(--radius);padding:8px;text-align:center;margin-bottom:10px">
+          <div style="font-size:11px;color:var(--red);font-weight:500">Toplam harcama</div>
+          <div style="font-size:17px;font-weight:600;color:var(--red)">${fmt(topHarc)}</div>
+        </div>
+        ${satirlar}${daha}
+      </div>` : '<div style="margin-top:8px;font-size:12px;color:var(--muted)">Henüz harcama yok</div>';
     return `<div class="kart-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
         <div>
@@ -809,15 +888,18 @@ async function renderKartlar() {
         </div>
       </div>
       <div class="kk-bar"><div class="kk-fill" style="width:${Math.min(100,pct)}%;background:${fillColor}"></div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:12px;color:var(--muted)">%${pct} kullanım</span>
         <div style="display:flex;gap:6px">
           <button class="btn btn-outline btn-sm" onclick="kartOdeme(${k.id},'${k.ad.replace(/'/g,"\\'")}')">Ödeme yap</button>
           <button class="btn btn-danger" onclick="kartSil(${k.id})">Sil</button>
         </div>
-      </div></div>`;
+      </div>
+      ${gecmis}
+    </div>`;
   }).join('');
 }
+
 
 async function renderKartSec() {
   const { data } = await sb.from('kartlar').select('id,ad').eq('user_id',currentUser.id).order('ad');
@@ -852,6 +934,83 @@ async function renderRapor() {
   if (!Object.keys(katMap).length){el.innerHTML='<div class="empty">Veri yok</div>';return;}
   el.innerHTML=`<table><thead><tr><th>Kategori</th><th>Gelir</th><th>Gider</th><th>Net</th></tr></thead><tbody>`+
     Object.entries(katMap).map(([k,v])=>{const n=v.gelir-v.gider;return `<tr><td>${k}</td><td style="color:var(--green-light)">${v.gelir>0?fmt(v.gelir):'-'}</td><td style="color:var(--red)">${v.gider>0?fmt(v.gider):'-'}</td><td style="font-weight:600;color:${n>=0?'var(--green-light)':'var(--red)'}">${n>=0?'+':''}${fmt(n)}</td></tr>`;}).join('')+`</tbody></table>`;
+}
+
+async function renderBorclar() {
+  const [{ data: kartlar }, { data: toptanci }] = await Promise.all([
+    sb.from('kartlar').select('*').eq('user_id',currentUser.id).order('borc',{ascending:false}),
+    sb.from('toptanci').select('*').eq('user_id',currentUser.id).order('borc',{ascending:false})
+  ]);
+
+  const topKart = (kartlar||[]).reduce((s,k)=>s+Number(k.borc),0);
+  const topTop = (toptanci||[]).reduce((s,t)=>s+Number(t.borc),0);
+  const toplamBorc = topKart + topTop;
+
+  // Özet kartlar
+  document.getElementById('borclar-ozet').innerHTML = `
+    <div class="summary-card"><div class="sc-label">Kredi kartı</div><div class="sc-val e">${fmt(topKart)}</div></div>
+    <div class="summary-card"><div class="sc-label">Toptancı</div><div class="sc-val e">${fmt(topTop)}</div></div>
+    <div class="summary-card full" style="background:var(--red-pale);border-color:var(--red)">
+      <div class="sc-label" style="color:var(--red)">Toplam borç</div>
+      <div class="sc-val e" style="font-size:26px">${fmt(toplamBorc)}</div>
+    </div>`;
+
+  // Kredi kartları
+  const kartEl = document.getElementById('borclar-kartlar');
+  if (!kartlar?.length) {
+    kartEl.innerHTML = '<div class="empty">Kredi kartı eklenmedi</div>';
+  } else {
+    kartEl.innerHTML = kartlar.map(k => {
+      const pct = Math.min(100, Math.round(Number(k.borc)/k.limit_tutar*100));
+      const fillColor = pct>=90?'#E24B4A':pct>=70?'#BA7517':'#378ADD';
+      const sonOdemeGun = k.son_odeme_gun;
+      const bugun = new Date().getDate();
+      const kalanGun = sonOdemeGun >= bugun ? sonOdemeGun - bugun : (30 - bugun + sonOdemeGun);
+      const acilBadge = kalanGun <= 3 ? `<span class="badge badge-e" style="margin-left:6px">Son ${kalanGun} gün!</span>` :
+                        kalanGun <= 7 ? `<span class="badge badge-warn" style="margin-left:6px">${kalanGun} gün kaldı</span>` : '';
+      return `<div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div>
+            <div style="font-weight:500;font-size:14px">${k.ad}${acilBadge}</div>
+            <div style="font-size:12px;color:var(--muted)">Son ödeme: her ayın ${k.son_odeme_gun}i</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:600;color:${Number(k.borc)>0?'var(--red)':'var(--green-light)'}">${fmt(k.borc)}</div>
+            <div style="font-size:11px;color:var(--muted)">/ ${fmt(k.limit_tutar)}</div>
+          </div>
+        </div>
+        <div class="kk-bar"><div class="kk-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span style="font-size:11px;color:var(--muted)">%${pct} kullanım</span>
+          <button class="btn btn-outline btn-sm" onclick="kartOdeme(${k.id},'${k.ad.replace(/'/g,"\\'")}');setTimeout(renderBorclar,400)">Ödeme yap</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Toptancılar
+  const topEl = document.getElementById('borclar-toptanci');
+  const aktifTop = (toptanci||[]).filter(t=>Number(t.borc)>0);
+  if (!aktifTop.length) {
+    topEl.innerHTML = '<div class="empty">Toptancı borcu yok</div>';
+  } else {
+    topEl.innerHTML = aktifTop.map(t => `
+      <div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:500;font-size:14px">${t.ad}</div>
+            <div style="font-size:12px;color:var(--muted)">${[t.kisi,t.tel].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:600;color:var(--red)">${fmt(t.borc)}</div>
+            <div style="font-size:11px;color:var(--muted)">${t.kategori||''}</div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <button class="btn btn-outline btn-sm" onclick="topOdeme(${t.id},'${t.ad.replace(/'/g,"\\'")}');setTimeout(renderBorclar,400)">Ödeme yap</button>
+        </div>
+      </div>`).join('');
+  }
 }
 
 async function csvIndir() {
