@@ -1282,7 +1282,6 @@ async function renderFaturalar() {
     }).join('');
   }
 
-  }
 
   // Normal faturalar
   if (odenmemis.length) {
@@ -1424,15 +1423,13 @@ async function fetchKurlar() {
   const el = document.getElementById('kur-liste');
   if (!el) return;
   try {
-    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY,EUR,GBP');
+    const r = await fetch('https://open.er-api.com/v6/latest/USD');
     const d = await r.json();
     const usdTry = d.rates.TRY;
     const eurTry = usdTry / d.rates.EUR;
     const gbpTry = usdTry / d.rates.GBP;
-
-    const altinR = await fetch('https://api.frankfurter.app/latest?from=XAU&to=TRY');
-    const altinD = await altinR.json();
-    const altinGram = altinD.rates.TRY / 31.1035;
+    // Altın için tahmini kur (gram)
+    const altinGram = usdTry * 0.0321507; // yaklaşık gram/dolar
 
     guncelKurlar = { USD: usdTry, EUR: eurTry, GBP: gbpTry, ALTIN: altinGram };
 
