@@ -382,8 +382,11 @@ tr:last-child td { border-bottom: none; }
         </div>
         <div class="form-field"><label>Açıklama (opsiyonel)</label><input type="text" id="fat-aciklama" placeholder="ör: Cadde üstü dükkan, 2. kat ofis..."></div>
         <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
-          <input type="checkbox" id="fat-12ay" style="width:18px;height:18px;cursor:pointer">
+          <input type="checkbox" id="fat-12ay" style="width:18px;height:18px;cursor:pointer" onchange="document.getElementById('fat-baslangic-row').style.display=this.checked?'block':'none'">
           <label for="fat-12ay" style="font-size:14px;cursor:pointer">12 aylık takip (her ayın ödemesini ayrı izle)</label>
+        </div>
+        <div id="fat-baslangic-row" style="display:none">
+          <div class="form-field"><label>Başlangıç ayı</label><input type="month" id="fat-baslangic" style="width:100%;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:15px"></div>
         </div>
         <button class="btn btn-primary" onclick="faturaEkle()">Ekle</button>
       </div>
@@ -1126,20 +1129,21 @@ async function faturaEkle() {
   const gun = parseInt(document.getElementById('fat-gun').value);
   if (!ad || !tutar || !gun) { alert('Ad, tutar ve ödeme günü zorunludur'); return; }
   const on_iki_ay = document.getElementById('fat-12ay')?.checked || false;
-  // 12 aylık ise odenen_aylar JSON array olarak tutulur: ["2026-01","2026-02",...]
+  const baslangic_ay = document.getElementById('fat-baslangic')?.value || new Date().toISOString().slice(0,7);
   await sb.from('faturalar').insert({
     user_id: currentUser.id, ad, tutar, son_odeme_gun: gun,
     kategori: document.getElementById('fat-kat').value,
     aciklama: document.getElementById('fat-aciklama')?.value || '',
     odendi: false,
     on_iki_ay,
-    odenen_aylar: '[]'
+    odenen_aylar: '[]',
+    baslangic_ay: on_iki_ay ? baslangic_ay : null
   });
   document.getElementById('fat-ad').value = '';
   document.getElementById('fat-tutar').value = '';
   document.getElementById('fat-gun').value = '';
   if (document.getElementById('fat-aciklama')) document.getElementById('fat-aciklama').value = '';
-  if (document.getElementById('fat-12ay')) document.getElementById('fat-12ay').checked = false;
+  if (document.getElementById('fat-12ay')) { document.getElementById('fat-12ay').checked = false; document.getElementById('fat-baslangic-row').style.display='none'; }
   await renderFaturalar();
 }
 
@@ -1195,12 +1199,17 @@ async function renderFaturalar() {
   const bugun = new Date().getDate();
   const buAy = new Date().toISOString().slice(0,7);
 
-  // Kayıt tarihinden itibaren 12 ay üret (geçmiş + gelecek dahil)
   function getAylar(f) {
-    // Başlangıç = kayıt oluşturma ayı, 12 ay ilerisi
-    const baslangic = new Date(f.created_at || new Date());
+    // baslangic_ay varsa onu kullan, yoksa bugünden 11 ay önce
+    let baslangic;
+    if (f.baslangic_ay) {
+      baslangic = new Date(f.baslangic_ay + '-01');
+    } else {
+      baslangic = new Date();
+      baslangic.setMonth(baslangic.getMonth() - 11);
+    }
     baslangic.setDate(1);
-    return Array.from({length:12},(_,i)=>{
+    return Array.from({length:24},(_,i)=>{
       const d = new Date(baslangic); d.setMonth(baslangic.getMonth()+i);
       return {
         key: d.toISOString().slice(0,7),
@@ -1227,7 +1236,7 @@ async function renderFaturalar() {
       try { const raw = JSON.parse(f.odenen_aylar||'[]'); odenenAylar = raw.map(a=>typeof a==='string'?a:a.ay); } catch(e){}
       const odenenSayi = odenenAylar.length;
       const topOdenen = odenenSayi * Number(f.tutar);
-      const kalanSayi = 12 - odenenSayi;
+      const kalanSayi = 24 - odenenSayi;
       const aylarF = getAylar(f);
 
       // Yıllara göre grupla
@@ -1264,11 +1273,11 @@ async function renderFaturalar() {
           </div>
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:600">${fmt(f.tutar)}<span style="font-size:11px;color:var(--muted)">/ay</span></div>
-            <div style="font-size:11px;color:var(--muted)">${odenenSayi}/12 ödendi</div>
+            <div style="font-size:11px;color:var(--muted)">${odenenSayi}/24 ödendi</div>
           </div>
         </div>
         <div style="background:var(--bg);border-radius:4px;height:6px;overflow:hidden;margin-bottom:10px">
-          <div style="height:100%;background:var(--green-light);border-radius:4px;width:${Math.round(odenenSayi/12*100)}%;transition:width 0.4s"></div>
+          <div style="height:100%;background:var(--green-light);border-radius:4px;width:${Math.round(odenenSayi/24*100)}%;transition:width 0.4s"></div>
         </div>
         ${yilGridler}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
